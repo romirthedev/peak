@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
@@ -26,6 +26,11 @@ let package = Package(
             resources: [
                 // actool compiles this at build time on Apple platforms
                 .process("Assets.xcassets"),
+            ],
+            swiftSettings: [
+                // Use Swift 5 language mode so the existing codebase compiles
+                // without Swift 6's strict concurrency enforcement.
+                .swiftLanguageMode(.v5),
             ]
         )
     ]
