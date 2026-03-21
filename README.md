@@ -8,16 +8,56 @@ Peak is a macOS menu bar app that quietly records your screen and audio in the b
 
 ---
 
-## What Peak does
+## For users — install in 30 seconds
 
-| Feature | How |
-|---|---|
-| Screen memory | Captures screenshots every 5 s, runs OCR via Vision framework |
-| Meeting recall | Records microphone audio in 30 s segments, transcribes locally with Whisper |
-| Activity tracking | Tracks active app, window title, and browser URL |
-| Semantic search | Embeds all captured text with `nomic-embed-text` via Ollama |
-| AI Q&A | Streams answers from any local Ollama model with context injected |
-| Timeline | Visual log of everything you did, browseable by date |
+1. Download **Peak.dmg** from the [Releases page](../../releases/latest)
+2. Open the DMG → drag **Peak.app** to your Applications folder
+3. Launch Peak from Applications (or Spotlight: `⌘Space` → "Peak")
+4. Grant Screen Recording + Microphone when prompted
+5. Install [Ollama](https://ollama.ai) and run:
+
+```bash
+ollama pull llama3.2
+ollama pull nomic-embed-text
+```
+
+6. Click the waveform icon in your menu bar → **Start Recording**
+
+> **Gatekeeper note:** Until the app is notarized, macOS may warn you on first launch.
+> Right-click `Peak.app` → **Open** once to bypass it.
+
+---
+
+## For developers — build from source
+
+Xcode IDE is **not** required. You only need Xcode Command Line Tools (~500 MB vs Xcode's ~10 GB).
+
+```bash
+# One-time setup
+./setup.sh
+
+# Build Peak.app + DMG
+./scripts/build.sh
+./scripts/create-dmg.sh
+
+# Output: .build/Peak-1.0.0.dmg
+```
+
+### Auto-release via GitHub Actions
+
+Push a version tag and the CI pipeline builds a universal DMG and publishes it as a GitHub Release automatically:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+# → .github/workflows/release.yml runs on a macOS runner
+# → Peak-1.0.0.dmg appears in Releases, ready to link from your website
+```
+
+Your website's download button just needs to point to:
+```
+https://github.com/<you>/peak/releases/latest/download/Peak-<VERSION>.dmg
+```
 
 ---
 
@@ -27,7 +67,9 @@ Peak is a macOS menu bar app that quietly records your screen and audio in the b
 Peak/
 ├── App/
 │   ├── PeakApp.swift            # @main SwiftUI entry point
-│   └── AppDelegate.swift        # NSStatusItem menu bar setup
+│   ├── AppDelegate.swift        # NSStatusItem menu bar + window management
+│   ├── Info.plist               # Bundle metadata, privacy descriptions
+│   └── Peak.entitlements        # Microphone, network (localhost), file access
 ├── Models/
 │   ├── Screenshot.swift
 │   ├── AudioSegment.swift
@@ -35,103 +77,60 @@ Peak/
 │   ├── ChatMessage.swift
 │   └── SearchResult.swift
 ├── Services/
-│   ├── ScreenCaptureService.swift   # Periodic CGDisplayCreateImage + permission check
-│   ├── OCRService.swift             # Vision VNRecognizeTextRequest
-│   ├── AudioCaptureService.swift    # AVAudioEngine mic capture, rolling segments
-│   ├── TranscriptionService.swift   # WhisperKit local transcription
-│   ├── ActivityMonitorService.swift # NSWorkspace + CGWindowList polling
-│   ├── StorageService.swift         # SQLite.swift local database
-│   ├── EmbeddingService.swift       # Ollama /api/embeddings + cosine similarity
-│   ├── AIService.swift              # Ollama /api/chat streaming
+│   ├── ScreenCaptureService.swift   # CGDisplayCreateImage every N seconds
+│   ├── OCRService.swift             # Vision VNRecognizeTextRequest (local)
+│   ├── AudioCaptureService.swift    # AVAudioEngine, rolling 30-second segments
+│   ├── TranscriptionService.swift   # WhisperKit (local, on-device)
+│   ├── ActivityMonitorService.swift # NSWorkspace + CGWindowList + AppleScript
+│   ├── StorageService.swift         # SQLite.swift — all data stored locally
+│   ├── EmbeddingService.swift       # Ollama nomic-embed-text + cosine similarity
+│   ├── AIService.swift              # Ollama streaming chat completions
 │   └── RecordingOrchestrator.swift  # @MainActor coordinator / @Published state
 ├── Views/
-│   ├── MenuBarView.swift            # Popover from status item
+│   ├── MenuBarView.swift            # NSStatusItem popover
 │   ├── MainWindowView.swift         # NavigationSplitView shell
-│   ├── ChatView.swift               # Streaming chat UI
-│   ├── TimelineView.swift           # HSplitView activity log + app usage
+│   ├── ChatView.swift               # Streaming Q&A chat
+│   ├── TimelineView.swift           # Activity log + app usage chart
 │   ├── OnboardingView.swift         # 3-step first-run flow
-│   └── SettingsView.swift           # Form with all preferences
+│   └── SettingsView.swift           # All preferences
 └── Utilities/
     ├── Constants.swift
     └── Extensions.swift
+
+Package.swift                    # Swift Package Manager manifest
+scripts/
+├── build.sh                     # Builds universal Peak.app
+└── create-dmg.sh                # Packages Peak.app into a DMG
+.github/workflows/
+└── release.yml                  # CI/CD: tag → build → GitHub Release
 ```
 
 ### Data flow
 
 ```
-Screen → ScreenCaptureService → OCRService → StorageService (SQLite)
-                                           → EmbeddingService (Ollama) → StorageService
+Screen → ScreenCaptureService ──→ OCRService        ──→ StorageService (SQLite)
+                                                     └─→ EmbeddingService (Ollama) → StorageService
 
-Mic → AudioCaptureService → TranscriptionService (Whisper) → StorageService
-                                                           → EmbeddingService → StorageService
+Mic    → AudioCaptureService  ──→ TranscriptionService ──→ StorageService
+                                  (WhisperKit local)   └─→ EmbeddingService → StorageService
 
-Activity → ActivityMonitorService → StorageService
+User   → NSWorkspace/CGWindowList ──→ StorageService
 
-User query → EmbeddingService (query vector)
-           → cosine similarity over all stored embeddings
-           → top-N context chunks → AIService (Ollama, streaming) → ChatView
+Query  → EmbeddingService (embed query)
+       → cosine similarity over all embeddings
+       → top-N context chunks
+       → AIService (Ollama, streaming) → ChatView
 ```
 
 ---
 
 ## Requirements
 
-| Dependency | Version | Purpose |
-|---|---|---|
-| macOS | 13.0+ | Minimum deployment target |
-| Xcode | 15+ | Build toolchain |
-| [Ollama](https://ollama.ai) | latest | Local LLM & embedding inference |
-| XcodeGen | any | Generate `.xcodeproj` from `project.yml` |
-
----
-
-## Setup
-
-```bash
-# Clone the repo
-git clone <repo-url> peak && cd peak
-
-# Run the automated setup script
-./setup.sh
-```
-
-The script will:
-1. Install Homebrew (if needed)
-2. Install XcodeGen via Homebrew
-3. Pull `llama3.2` and `nomic-embed-text` from Ollama
-4. Generate `Peak.xcodeproj`
-
-Then open the project in Xcode, set your Development Team, and hit **⌘R**.
-
-### Manual setup
-
-```bash
-# Install XcodeGen
-brew install xcodegen
-
-# Install & start Ollama
-# → https://ollama.ai
-
-# Pull models
-ollama pull llama3.2
-ollama pull nomic-embed-text
-
-# Generate Xcode project
-xcodegen generate
-
-# Open in Xcode
-open Peak.xcodeproj
-```
-
----
-
-## Permissions
-
-Peak requires the following macOS permissions (granted via the onboarding flow):
-
-- **Screen Recording** — `System Settings → Privacy & Security → Screen Recording`
-- **Microphone** — requested at runtime
-- **Accessibility** — for reading window titles (`System Settings → Privacy & Security → Accessibility`)
+| Requirement | Notes |
+|---|---|
+| macOS 13 Ventura+ | Deployment target |
+| [Ollama](https://ollama.ai) | Local AI inference — runs on your Mac |
+| Xcode CLT (dev only) | `xcode-select --install` — **not** full Xcode |
 
 ---
 
@@ -143,47 +142,32 @@ All settings are in the **Settings** tab inside Peak:
 |---|---|---|
 | Capture interval | 5 s | How often a screenshot is taken |
 | Language model | `llama3.2` | Ollama model used for chat |
-| Whisper model | `openai_whisper-base` | Transcription accuracy vs. speed trade-off |
-| Retention | 30 days | Automatically delete data older than N days |
+| Whisper model | `openai_whisper-base` | Transcription speed vs. accuracy |
+| Retention | 30 days | Auto-delete data older than N days |
 
 ---
 
-## Privacy & Security
+## Signed & notarized distribution (optional)
 
-- All captured data is stored in `~/Library/Application Support/Peak/`
-- No data ever leaves your machine
-- The app has no network entitlement except for `localhost:11434` (Ollama)
-- App Sandbox is disabled to allow screen recording and microphone access (standard for this class of app)
-- You can delete everything at any time via **Settings → Clear All Data**
+For a seamless first-launch experience with no Gatekeeper warning:
 
----
-
-## Local database
-
-SQLite database lives at:
-
-```
-~/Library/Application Support/Peak/peak.db
-```
-
-Tables: `screenshots`, `audio_segments`, `activity_events`, `embeddings`
+1. Join the [Apple Developer Program](https://developer.apple.com/programs/) ($99/year)
+2. Create a **Developer ID Application** certificate in Xcode
+3. Add these secrets to your GitHub repo:
+   - `SIGN_IDENTITY` → `Developer ID Application: Your Name (TEAMID)`
+   - `APPLE_ID` → your Apple ID email
+   - `APPLE_TEAM_ID` → your 10-character team ID
+   - `APPLE_APP_PASSWORD` → an app-specific password from appleid.apple.com
+4. Uncomment the `Notarize` step in `.github/workflows/release.yml`
 
 ---
 
-## Roadmap
+## Privacy
 
-- [ ] System audio capture (meeting output, not just mic)
-- [ ] Automatic daily summaries
-- [ ] Writing style analysis and ghost-writing
-- [ ] Spotlight / Quick Look integration
-- [ ] iCloud sync (encrypted) — opt-in
-- [ ] iOS companion app
-
----
-
-## Contributing
-
-Pull requests are welcome. Please open an issue first for large changes.
+- All data is stored in `~/Library/Application Support/Peak/`
+- Nothing ever leaves your Mac
+- The only network calls go to `localhost:11434` (Ollama)
+- You can delete everything at any time: **Settings → Clear All Data**
 
 ---
 

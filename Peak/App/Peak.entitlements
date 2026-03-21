@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        App sandbox is disabled.
+        Peak records the screen and microphone — both require sandbox exceptions
+        that are not available to sandboxed apps distributed outside the Mac App Store.
+        For App Store distribution, use a hardened-runtime + entitlements approach instead.
+    -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+
+    <!-- Microphone access for audio capture -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- Outbound network for Ollama on localhost:11434 -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- Read/write user-selected files (screenshots, audio segments) -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!-- Application Support directory (database, screenshots, audio) -->
+    <key>com.apple.security.files.downloads.read-write</key>
+    <false/>
+</dict>
+</plist>

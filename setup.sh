@@ -1,65 +1,88 @@
 #!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# Peak — developer setup script
+#
+# Sets up everything needed to BUILD Peak from source.
+# End USERS don't run this — they just download the DMG from the releases page.
+# ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 echo ""
 echo "╔══════════════════════════════════════════╗"
-echo "║           Peak — Setup Script            ║"
+echo "║         Peak — Developer Setup           ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
-# ── 1. Homebrew ───────────────────────────────────────────────────────────────
-if ! command -v brew &>/dev/null; then
-  echo "📦 Installing Homebrew…"
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# ── 1. Xcode Command Line Tools ───────────────────────────────────────────────
+# Full Xcode IDE is NOT required. CLT provides: swift, swiftc, lipo, actool, codesign.
+if ! xcode-select -p &>/dev/null; then
+    echo "📦 Installing Xcode Command Line Tools…"
+    xcode-select --install
+    echo ""
+    echo "⚠️  Finish the CLT installer, then re-run this script."
+    exit 0
 else
-  echo "✅  Homebrew already installed"
+    echo "✅  Xcode Command Line Tools: $(xcode-select -p)"
 fi
 
-# ── 2. XcodeGen ──────────────────────────────────────────────────────────────
-if ! command -v xcodegen &>/dev/null; then
-  echo "📦 Installing XcodeGen…"
-  brew install xcodegen
-else
-  echo "✅  XcodeGen already installed"
-fi
+# ── 2. Swift version check ────────────────────────────────────────────────────
+SWIFT_VERSION=$(swift --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+echo "✅  Swift $SWIFT_VERSION"
 
 # ── 3. Ollama ─────────────────────────────────────────────────────────────────
 if ! command -v ollama &>/dev/null; then
-  echo ""
-  echo "⚠️  Ollama is not installed."
-  echo "    Please install it from https://ollama.ai and re-run this script."
-  echo ""
-  open "https://ollama.ai" 2>/dev/null || true
+    echo ""
+    echo "⚠️  Ollama is not installed."
+    echo "    Peak needs Ollama to run the local AI models."
+    echo "    Download it from: https://ollama.ai"
+    echo ""
+    open "https://ollama.ai" 2>/dev/null || true
+    echo "    After installing, re-run this script."
+    exit 0
 else
-  echo "✅  Ollama found at $(which ollama)"
-  echo ""
-  echo "📥 Pulling required models (this may take a few minutes)…"
+    echo "✅  Ollama: $(ollama --version 2>/dev/null || echo 'installed')"
 
-  echo "   → llama3.2 (language model)"
-  ollama pull llama3.2
+    echo ""
+    echo "📥 Pulling required AI models (first time may take a few minutes)…"
 
-  echo "   → nomic-embed-text (embedding model)"
-  ollama pull nomic-embed-text
+    echo "   → llama3.2  (language model for chat)"
+    ollama pull llama3.2
 
-  echo ""
-  echo "📥 Whisper will be downloaded automatically on first launch by WhisperKit."
+    echo "   → nomic-embed-text  (embedding model for semantic search)"
+    ollama pull nomic-embed-text
+
+    echo ""
+    echo "   Whisper (speech-to-text) is downloaded automatically on first launch."
 fi
 
-# ── 4. Generate Xcode project ─────────────────────────────────────────────────
+# ── 4. Resolve Swift packages ─────────────────────────────────────────────────
 echo ""
-echo "🔨 Generating Xcode project with XcodeGen…"
-xcodegen generate
+echo "▸ Resolving Swift Package Manager dependencies…"
+swift package resolve
 
+# ── 5. Quick build check ──────────────────────────────────────────────────────
+echo ""
+read -r -p "▸ Run a debug build now to verify everything compiles? [Y/n] " choice
+choice="${choice:-Y}"
+if [[ "$choice" =~ ^[Yy]$ ]]; then
+    swift build
+    echo "✅  Debug build succeeded."
+fi
+
+# ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════"
-echo "✅  Setup complete!"
+echo "✅  Developer setup complete!"
 echo ""
-echo "Next steps:"
-echo "  1. Open Peak.xcodeproj in Xcode"
-echo "  2. Set your Development Team in Signing & Capabilities"
-echo "  3. Build & Run (⌘R)"
+echo "To build a distributable app:"
 echo ""
-echo "Peak will appear in your menu bar."
-echo "Click the waveform icon → 'Start Recording' to begin."
+echo "  ./scripts/build.sh          # builds Peak.app"
+echo "  ./scripts/create-dmg.sh     # packages into Peak-1.0.0.dmg"
+echo ""
+echo "To release automatically via GitHub Actions:"
+echo "  git tag v1.0.0 && git push origin v1.0.0"
+echo ""
+echo "The DMG will appear in your GitHub Releases page,"
+echo "ready to link from your website's download button."
 echo "═══════════════════════════════════════════"
 echo ""

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Peak</string>
+    <key>CFBundleDisplayName</key>
+    <string>Peak</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.peak.app</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>Peak</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <!-- LSUIElement = true makes Peak a menu bar app with no Dock icon -->
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2024 Peak. All rights reserved.</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <!-- Privacy usage descriptions — shown in system permission dialogs -->
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Peak captures your screen to build a searchable memory of your work. Nothing leaves your Mac.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Peak records your microphone to transcribe meetings and voice notes locally on your Mac.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Peak reads the active browser URL so it knows which website you are visiting.</string>
+</dict>
+</plist>
