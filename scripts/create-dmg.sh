@@ -57,6 +57,9 @@ hdiutil create \
 
 rm -rf "$DMG_STAGE"
 
+# Also create a plain Peak.dmg for the "latest" download URL
+cp "$OUTPUT_DMG" "$BUILD_ROOT/Peak.dmg"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 DMG_SIZE=$(du -sh "$OUTPUT_DMG" | cut -f1)
 echo ""

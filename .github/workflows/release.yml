@@ -19,7 +19,7 @@ on:
 jobs:
   build:
     name: Build macOS App
-    runs-on: macos-14          # Apple Silicon runner — Xcode 15 pre-installed
+    runs-on: macos-15          # Apple Silicon runner — Xcode 16 / Swift 6
 
     steps:
       # ── 1. Source ────────────────────────────────────────────────────────────
@@ -110,7 +110,9 @@ jobs:
             > **First launch note:** Because this build is not yet notarized,
             > macOS Gatekeeper may show a warning. Right-click → Open to bypass it once.
             > Notarization (seamless launch) is coming in a future release.
-          files: .build/Peak-*.dmg
+          files: |
+            .build/Peak-*.dmg
+            .build/Peak.dmg
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(env.VERSION, '-') }}
