@@ -38,7 +38,7 @@ echo ""
 
 # ── Step 1: Compile ──────────────────────────────────────────────────────────
 ARCH=$(uname -m)
-echo "▸ Compiling for $ARCH…"
+echo "▸ Compiling for ${ARCH}..."
 swift build -c release --arch "$ARCH"
 echo ""
 
