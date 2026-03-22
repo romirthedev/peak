@@ -5,6 +5,9 @@ name: Build & Release
 #   • Push a tag like "v1.2.3" → builds, creates a GitHub Release, uploads DMG
 #   • Manual dispatch → builds a DMG artifact (no public release created)
 # ─────────────────────────────────────────────────────────────────────────────
+permissions:
+  contents: write
+
 on:
   push:
     tags:
@@ -83,7 +86,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Peak-${{ env.VERSION }}
-          path: .build/Peak-*.dmg
+          path: .build/Peak.dmg
           retention-days: 30
 
       # ── 8. Publish GitHub Release (only on tag push) ──────────────────────────
@@ -96,7 +99,7 @@ jobs:
             ## Peak ${{ env.VERSION }}
 
             ### Installation
-            1. Download **Peak-${{ env.VERSION }}.dmg** below
+            1. Download **Peak.dmg** below
             2. Open the DMG
             3. Drag **Peak.app** to your Applications folder
             4. Launch Peak from Applications (or Spotlight)
@@ -110,10 +113,7 @@ jobs:
             > **First launch note:** Because this build is not yet notarized,
             > macOS Gatekeeper may show a warning. Right-click → Open to bypass it once.
             > Notarization (seamless launch) is coming in a future release.
-          files: |
-            .build/Peak-*.dmg
-            .build/Peak.dmg
-          generate_release_notes: true
+          files: .build/Peak.dmg
           draft: false
           prerelease: ${{ contains(env.VERSION, '-') }}
         env:
