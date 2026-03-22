@@ -16,7 +16,7 @@ final class AIService {
     // MARK: - Availability
 
     func isAvailable() async -> Bool {
-        guard let url = URL(string: "\(baseURL)api/tags") else { return false }
+        guard let url = URL(string: "\(baseURL)/api/tags") else { return false }
         do {
             let (_, response) = try await URLSession.shared.data(from: url)
             return (response as? HTTPURLResponse)?.statusCode == 200

@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import SwiftUI
 import CoreImage
 
 /// Central coordinator: drives all capture services and exposes state to the UI.
@@ -73,26 +74,36 @@ final class RecordingOrchestrator: ObservableObject {
     func startRecording() async {
         guard !isRecording else { return }
 
-        do {
-            if captureScreen {
+        var warnings: [String] = []
+
+        if captureScreen {
+            do {
                 try screenCapture.startCapturing(interval: captureInterval)
+            } catch {
+                warnings.append("Screen: \(error.localizedDescription)")
             }
-            if captureAudio {
-                try audioCapture.startRecording()
-            }
-            activityMonitor.startMonitoring()
-        } catch {
-            // Surface permission errors as a system message
-            let msg = ChatMessage(role: .assistant, content: "⚠️ Could not start recording: \(error.localizedDescription)")
-            messages.append(msg)
-            return
         }
+
+        if captureAudio {
+            do {
+                try audioCapture.startRecording()
+            } catch {
+                warnings.append("Audio: \(error.localizedDescription)")
+            }
+        }
+
+        activityMonitor.startMonitoring()
 
         isRecording = true
         durationTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.recordingDuration += 1
             }
+        }
+
+        if !warnings.isEmpty {
+            let msg = ChatMessage(role: .assistant, content: "Recording started with warnings:\n\n" + warnings.joined(separator: "\n") + "\n\nIf you just granted permissions, try restarting Peak.")
+            messages.append(msg)
         }
     }
 
@@ -223,10 +234,20 @@ final class RecordingOrchestrator: ObservableObject {
         isStreaming = true
 
         // Retrieve semantically similar context
-        let context = await relevantContext(for: trimmed)
+        let contextResults = await relevantContext(for: trimmed)
+
+        // Build snippets for transparency
+        let snippets = contextResults.map { rec, sim in
+            ChatMessage.ContextSnippet(
+                type: rec.contentType,
+                capturedAt: rec.timestamp,
+                preview: String(rec.content.prefix(200)),
+                similarity: sim
+            )
+        }
 
         // Build system prompt with memory
-        let systemPrompt = buildSystemPrompt(context: context)
+        let systemPrompt = buildSystemPrompt(context: contextResults.map(\.0))
 
         // Assemble the conversation history for Ollama
         let history: [[String: String]] = messages.dropLast().suffix(12).map {
@@ -234,7 +255,7 @@ final class RecordingOrchestrator: ObservableObject {
         } + [["role": "user", "content": trimmed]]
 
         // Start streaming assistant response
-        var reply = ChatMessage(role: .assistant, content: "", isStreaming: true)
+        var reply = ChatMessage(role: .assistant, content: "", isStreaming: true, contextSnippets: snippets)
         messages.append(reply)
         let idx = messages.count - 1
 
@@ -252,7 +273,7 @@ final class RecordingOrchestrator: ObservableObject {
 
     // MARK: - Context Retrieval
 
-    private func relevantContext(for query: String) async -> [StorageService.EmbeddingRecord] {
+    private func relevantContext(for query: String) async -> [(StorageService.EmbeddingRecord, Float)] {
         guard isOllamaAvailable else { return [] }
         guard let queryVec = try? await embedder.embed(query) else { return [] }
 
@@ -264,7 +285,6 @@ final class RecordingOrchestrator: ObservableObject {
         .filter { $0.1 > 0.45 }
         .sorted { $0.1 > $1.1 }
         .prefix(12)
-        .map(\.0)
 
         return Array(scored)
     }
@@ -352,5 +372,16 @@ final class RecordingOrchestrator: ObservableObject {
         let start = cal.startOfDay(for: date)
         let end = cal.date(byAdding: .day, value: 1, to: start)!
         return storage.screenshots(from: start, to: end)
+    }
+
+    func audioSegments(for date: Date) -> [AudioSegment] {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: date)
+        let end = cal.date(byAdding: .day, value: 1, to: start)!
+        return storage.audioSegments(from: start, to: end)
+    }
+
+    func allEmbeddingRecords() -> [StorageService.EmbeddingRecord] {
+        return storage.allEmbeddings()
     }
 }

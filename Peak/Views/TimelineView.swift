@@ -7,42 +7,53 @@ struct TimelineView: View {
     @State private var appUsage: [(name: String, minutes: Int)] = []
 
     var body: some View {
-        HSplitView {
-            // Left panel: activity log
-            activityList
-                .frame(minWidth: 320)
-
-            // Right panel: app usage summary
-            usageSummary
-                .frame(minWidth: 220, maxWidth: 280)
-        }
-        .navigationTitle("Timeline")
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Timeline")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                Spacer()
                 DatePicker("", selection: $selectedDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .labelsHidden()
-            }
-            ToolbarItem(placement: .automatic) {
                 Button("Today") { selectedDate = Date() }
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .buttonStyle(.bordered)
                     .controlSize(.small)
             }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+
+            Divider().foregroundStyle(Color.creamDark)
+
+            HSplitView {
+                activityList
+                    .frame(minWidth: 320)
+                usageSummary
+                    .frame(minWidth: 200, maxWidth: 260)
+            }
         }
+        .background(Color.cream)
         .onAppear { reload() }
         .onChange(of: selectedDate) { _ in reload() }
     }
 
-    // MARK: - Subviews
-
     private var activityList: some View {
         Group {
             if activities.isEmpty {
-                ContentPlaceholder(
-                    icon: "clock",
-                    title: "No Activity",
-                    subtitle: "Nothing was recorded for \(selectedDate.formatted(date: .abbreviated, time: .omitted))."
-                )
+                VStack(spacing: 12) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 36))
+                        .foregroundStyle(Color.inkLight.opacity(0.4))
+                    Text("No Activity")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.ink)
+                    Text("Nothing recorded for \(selectedDate.formatted(date: .abbreviated, time: .omitted)).")
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundStyle(Color.inkLight)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
@@ -54,20 +65,23 @@ struct TimelineView: View {
                 }
             }
         }
+        .background(Color.cream)
     }
 
     private var usageSummary: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("App usage")
-                .font(.headline)
-                .padding()
+            Text("App Usage")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.ink)
+                .padding(16)
 
-            Divider()
+            Divider().foregroundStyle(Color.creamDark)
 
             if appUsage.isEmpty {
                 Spacer()
                 Text("No data")
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13, design: .rounded))
+                    .foregroundStyle(Color.inkLight)
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
@@ -82,10 +96,8 @@ struct TimelineView: View {
                 }
             }
         }
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.peachLight.opacity(0.5))
     }
-
-    // MARK: - Data
 
     private var groupedByHour: [(hour: Int, events: [ActivityEvent])] {
         var dict: [Int: [ActivityEvent]] = [:]
@@ -112,8 +124,6 @@ struct TimelineView: View {
     }
 }
 
-// MARK: - Subcomponents
-
 private struct HourSection: View {
     let hour: Int
     let events: [ActivityEvent]
@@ -127,8 +137,8 @@ private struct HourSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(hourLabel)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.inkLight)
                 .padding(.top, 16)
                 .padding(.bottom, 6)
                 .padding(.leading, 72)
@@ -145,39 +155,37 @@ private struct ActivityEventRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Time stamp
             Text(event.timestamp.formatted(date: .omitted, time: .shortened))
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 10, weight: .regular, design: .monospaced))
+                .foregroundStyle(Color.inkLight.opacity(0.6))
                 .frame(width: 60, alignment: .trailing)
                 .padding(.top, 2)
 
-            // Dot + line
             VStack(spacing: 0) {
                 Circle()
-                    .fill(appColor(event.bundleIdentifier))
+                    .fill(Color.peachAccent.opacity(0.7))
                     .frame(width: 7, height: 7)
                     .padding(.top, 3)
                 Rectangle()
-                    .fill(Color.secondary.opacity(0.15))
+                    .fill(Color.creamDark)
                     .frame(width: 1)
             }
             .frame(width: 24)
 
-            // Content
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.appName)
-                    .font(.callout.weight(.medium))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.ink)
                 if !event.windowTitle.isEmpty {
                     Text(event.windowTitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11, design: .rounded))
+                        .foregroundStyle(Color.inkLight)
                         .lineLimit(1)
                 }
                 if let url = event.url, let host = URL(string: url)?.host {
                     Text(host)
-                        .font(.caption2)
-                        .foregroundStyle(.blue.opacity(0.7))
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundStyle(Color.peachAccent)
                 }
             }
             .padding(.leading, 6)
@@ -185,12 +193,6 @@ private struct ActivityEventRow: View {
 
             Spacer()
         }
-    }
-
-    private func appColor(_ bundleId: String) -> Color {
-        let colors: [Color] = [.blue, .purple, .orange, .green, .pink, .teal, .indigo, .yellow]
-        let idx = abs(bundleId.hashValue) % colors.count
-        return colors[idx]
     }
 }
 
@@ -212,23 +214,24 @@ private struct AppUsageRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(name)
-                    .font(.callout)
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundStyle(Color.ink)
                     .lineLimit(1)
                 Spacer()
                 Text(durationLabel)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color.inkLight)
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.secondary.opacity(0.15))
+                        .fill(Color.creamDark)
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.blue.opacity(0.7))
+                        .fill(Color.peachAccent.opacity(0.7))
                         .frame(width: geo.size.width * fraction)
                 }
             }
-            .frame(height: 5)
+            .frame(height: 4)
         }
     }
 }
@@ -242,12 +245,13 @@ private struct ContentPlaceholder: View {
         VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 36))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkLight.opacity(0.4))
             Text(title)
-                .font(.title3.weight(.semibold))
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.ink)
             Text(subtitle)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, design: .rounded))
+                .foregroundStyle(Color.inkLight)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

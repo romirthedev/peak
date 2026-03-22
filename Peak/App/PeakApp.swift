@@ -3,29 +3,24 @@ import AppKit
 
 @main
 struct PeakApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var orchestrator = RecordingOrchestrator()
+    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "didCompleteOnboarding")
 
     var body: some Scene {
-        WindowGroup("Peak") {
-            MainWindowView()
-                .environmentObject(appDelegate.orchestrator)
-                .frame(minWidth: 900, minHeight: 600)
+        WindowGroup {
+            MainWindowView(showOnboarding: $showOnboarding)
+                .environmentObject(orchestrator)
+                .frame(minWidth: 900, minHeight: 620)
+                .task {
+                    await orchestrator.initialize()
+                }
         }
         .windowStyle(.titleBar)
-        .windowToolbarStyle(.unified)
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-            CommandGroup(after: .appInfo) {
-                Button("Open Peak") {
-                    appDelegate.openMainWindow()
-                }
-                .keyboardShortcut("o", modifiers: .command)
-            }
-        }
+        .windowToolbarStyle(.unified(showsTitle: false))
 
         Settings {
             SettingsView()
-                .environmentObject(appDelegate.orchestrator)
+                .environmentObject(orchestrator)
         }
     }
 }
